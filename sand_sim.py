@@ -23,11 +23,58 @@ cell_size = 5
 cols = screenW // cell_size
 rows = screenH // cell_size
 grid = np.zeros((cols, rows), dtype=int)
-rect_coords = []
+rect_coords = [] # keeps track of where the sand is
 
 
+# \--- CODE SIMPLOFICATION FUNCTIONS ---/
+# -> Enhance code clarity and streamlining through functions <-
 
+
+"""
+-> Returns the index of the given coordinates (x, y) in the rect_coords list <-
+
+    Parameters:
+    - x (int): The x-coordinate.
+    - y (int): The y-coordinate.
+
+    Returns:
+    - int: The index of the coordinates in the rect_coords list.
+"""
+def index(x, y):
+    for i, (col, row) in enumerate(rect_coords):
+        if col == x and row == y:
+            return i
+
+"""
+
+-> Move a cell in the grid to a new position <-
+
+Args:
+    col (int): The column index of the cell to be moved.
+    row (int): The row index of the cell to be moved.
+    new_col (int): The new column index for the cell.
+
+"""
+def cellMovement(col, row, new_col):
+    grid[col, row] = 0
+    del rect_coords[index(col, row)]
+    grid[new_col, row+1] = 1
+    rect_coords.append((new_col, row+1))
+
+column_order = list(range(cols))
+def randomShuffle():
+    random.shuffle(column_order)
+
+def randomChoice(values):
+    return random.choice(values)
+
+"""
+
+-> Decorator that limits the rate at which a function can be invoked <-
+
+"""
 def rate_limit(interval):
+
     def decorator(func):
         last_invocation = 0
 
@@ -41,41 +88,32 @@ def rate_limit(interval):
     return decorator
 
 
-def index(x, y):
-    for i, (col, row) in enumerate(rect_coords):
-        if col == x and row == y:
-            return i
+"""
 
-def cellMovement(col, row, new_col):
-    grid[col, row] = 0
-    del rect_coords[index(col, row)]
-    grid[new_col, row+1] = 1
-    rect_coords.append((new_col, row+1))
+-> Moves the sand particles in the grid <-
 
+    -> This method iterates through each column in a random order and simulates the falling movement of the sand particles.
+    -> The sand particles fall down one row at a time, and if there is an empty cell below, the sand particle moves to that cell.
+    -> If the cell below has sand and the diagonal is empty, the sand particle may randomly move to the left or right (depending on which is available).
 
-column_order = list(range(cols))
-def randomShuffle():
-    random.shuffle(column_order)
+    Note:
+        - The order of processing the columns is randomized to create a more symmetrical falling movement.
+        - The sand particles are represented by the value 1 in the grid.
+        - The grid is a two-dimensional array.
 
-
-def randomChoice(values):
-    return random.choice(values)
-
-
+"""
 def moveSand():
-    # this method makes the columns be processed in a random order making the falling movement more symmetrical
     col_thread = threading.Thread(target=randomShuffle, args=())
     col_thread.start()
     col_thread.join()
-    for i in column_order: # the previous method (for i in range(cols)) made the sand, when falling to the right, "spawn" in place and gave the effect of rising up
-        for j in range(rows-1, -1, -1): # if the end value is 0 the topmost row is not "considered" for the sand to spawn
+    for i in column_order:
+        for j in range(rows-1, -1, -1): # The second value is -1 so the top row is included in the sand spawnable area
             if j+1 <= rows-1:
                 below = grid[i, j+1];
                 if grid[i, j] == 1:
-                    if below == 0:
+                    if below == 0: # Checking if there's already sand below
                         cellMovement(i, j, i)
                     else:
-                        # To make the sand pile up more naturally, a little bit of randomness helps :)
                         rand = randomChoice([-1, 1])
 
                         belowA = grid[i+rand, j+1] if i+rand in range(cols) else 1
@@ -86,16 +124,32 @@ def moveSand():
                             cellMovement(i, j, i-rand)
 
 
+"""
+
+-> Draws the sand on the screen <-
+
+    -> This function calls the moveSand() function to update the sand positions,
+    and then draws each sand rectangle on the screen using pygame's draw.rect() function.
+    -> Also by iterating through the rect_coords list (which keeps track of the occupied cells)
+    there's an increase in performance due to optimizing the search process and minimizing redundant computations
+
+"""
 def drawSand():
     moveSand()
     for _, (x, y) in enumerate(rect_coords):
         pg.draw.rect(screen, white, ((x * cell_size, y * cell_size), (cell_size, cell_size)))
 
 
+"""
+
+-> Spawns sand particles on the grid based on the mouse position <-
+
+    -> The sand particles are created within a specific radius around the mouse position,
+    and if a cell, within the radius, is empty, a sand particle is created in it.
+
+"""
 @rate_limit(interval=0.05)
-# Creating Sand by pressing the mouse
 def summonSand():
-    # Sand spawning area
     sand_radius = cell_size // 2
     mouse_state = pg.mouse.get_pressed()
     if mouse_state[0]:
@@ -105,8 +159,8 @@ def summonSand():
                 if randomChoice([True, False]):
                     col = (mouseX // cell_size) + i
                     row = (mouseY // cell_size) + j
-                    if col in range(cols) and row in range(rows): # checks if the mouse is inside the window 
-                        if grid[col, row] == 0: # prevents summoning sand inside cells that already has it
+                    if col in range(cols) and row in range(rows):
+                        if grid[col, row] == 0:
                             grid[col, row] = 1
                             rect_coords.append((col, row))
 
