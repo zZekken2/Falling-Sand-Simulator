@@ -23,6 +23,7 @@ cell_size = 5
 cols = screenW // cell_size
 rows = screenH // cell_size
 grid = np.zeros((cols, rows), dtype=int)
+rect_coords = []
 
 
 
@@ -40,9 +41,16 @@ def rate_limit(interval):
     return decorator
 
 
+def index(x, y):
+    for i, (col, row) in enumerate(rect_coords):
+        if col == x and row == y:
+            return i
+
 def cellMovement(col, row, new_col):
     grid[col, row] = 0
+    del rect_coords[index(col, row)]
     grid[new_col, row+1] = 1
+    rect_coords.append((new_col, row+1))
 
 
 column_order = list(range(cols))
@@ -80,15 +88,13 @@ def moveSand():
 
 def drawSand():
     moveSand()
-    for i in range(cols):
-        for j in range(rows):
-            if grid[i, j] > 0:
-                pg.draw.rect(screen, white, ((i * cell_size, j * cell_size), (cell_size, cell_size)))
+    for _, (x, y) in enumerate(rect_coords):
+        pg.draw.rect(screen, white, ((x * cell_size, y * cell_size), (cell_size, cell_size)))
 
 
 @rate_limit(interval=0.05)
 # Creating Sand by pressing the mouse
-def mouseSand():
+def summonSand():
     # Sand spawning area
     sand_radius = cell_size // 2
     mouse_state = pg.mouse.get_pressed()
@@ -102,6 +108,8 @@ def mouseSand():
                     if col in range(cols) and row in range(rows): # checks if the mouse is inside the window 
                         if grid[col, row] == 0: # prevents summoning sand inside cells that already has it
                             grid[col, row] = 1
+                            rect_coords.append((col, row))
+
 
 
 # Main loop
@@ -112,7 +120,7 @@ while running:
             running = False
 
     screen.fill(black)
-    mouseSand()
+    summonSand()
     drawSand()
     pg.display.flip()
     clock.tick(60)
