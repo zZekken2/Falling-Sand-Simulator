@@ -26,7 +26,7 @@ grid = np.zeros((cols, rows), dtype=int)
 rect_coords = [] # keeps track of where the sand is
 
 
-# \--- CODE SIMPLOFICATION FUNCTIONS ---/
+# \--- CODE SIMPLIFICATION FUNCTIONS ---/
 # -> Enhance code clarity and streamlining through functions <-
 
 
