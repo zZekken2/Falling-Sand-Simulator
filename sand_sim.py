@@ -3,7 +3,6 @@ from pygame.locals import *
 import time
 import random
 import numpy as np
-import threading
 
 pg.init()
 
@@ -23,12 +22,11 @@ cell_size = 5
 cols = screenW // cell_size
 rows = screenH // cell_size
 grid = np.zeros((cols, rows), dtype=int)
-rect_coords = [] # keeps track of where the sand is
+rect_coords = [] # Keeps track of where the sand is
 
 
 # \--- CODE SIMPLIFICATION FUNCTIONS ---/
 # -> Enhance code clarity and streamlining through functions <-
-
 
 """
 -> Returns the index of the given coordinates (x, y) in the rect_coords list <-
@@ -49,10 +47,13 @@ def index(x, y):
 
 -> Move a cell in the grid to a new position <-
 
-Args:
-    col (int): The column index of the cell to be moved.
-    row (int): The row index of the cell to be moved.
-    new_col (int): The new column index for the cell.
+    Note:
+        - The grid is a two-dimensional array.
+
+    Args:
+        col (int): The column index of the cell to be moved.
+        row (int): The row index of the cell to be moved.
+        new_col (int): The new column index for the cell.
 
 """
 def cellMovement(col, row, new_col):
@@ -61,9 +62,6 @@ def cellMovement(col, row, new_col):
     grid[new_col, row+1] = 1
     rect_coords.append((new_col, row+1))
 
-column_order = list(range(cols))
-def randomShuffle():
-    random.shuffle(column_order)
 
 def randomChoice(values):
     return random.choice(values)
@@ -74,7 +72,6 @@ def randomChoice(values):
 
 """
 def rate_limit(interval):
-
     def decorator(func):
         last_invocation = 0
 
@@ -92,36 +89,31 @@ def rate_limit(interval):
 
 -> Moves the sand particles in the grid <-
 
-    -> This method iterates through each column in a random order and simulates the falling movement of the sand particles.
+    -> This method iterates through the coordinates of the sand particles in the grid and checks if there is sand below each one. 
     -> The sand particles fall down one row at a time, and if there is an empty cell below, the sand particle moves to that cell.
     -> If the cell below has sand and the diagonal is empty, the sand particle may randomly move to the left or right (depending on which is available).
 
     Note:
-        - The order of processing the columns is randomized to create a more symmetrical falling movement.
         - The sand particles are represented by the value 1 in the grid.
-        - The grid is a two-dimensional array.
+        - rect_coords is a list containing tuples representing the coordinates of particles in the format (column, row).
 
 """
 def moveSand():
-    col_thread = threading.Thread(target=randomShuffle, args=())
-    col_thread.start()
-    col_thread.join()
-    for i in column_order:
-        for j in range(rows-1, -1, -1): # The second value is -1 so the top row is included in the sand spawnable area
+    for _, (i, j) in enumerate(rect_coords):
+        if grid[i, j] == 1:
             if j+1 <= rows-1:
                 below = grid[i, j+1];
-                if grid[i, j] == 1:
-                    if below == 0: # Checking if there's already sand below
-                        cellMovement(i, j, i)
-                    else:
-                        rand = randomChoice([-1, 1])
+                if below == 0: # Checking if there's already sand below
+                    cellMovement(i, j, i)
+                else:
+                    rand = randomChoice([-1, 1])
 
-                        belowA = grid[i+rand, j+1] if i+rand in range(cols) else 1
-                        belowB = grid[i-rand, j+1] if i-rand in range(cols) else 1
-                        if belowA == 0:
-                            cellMovement(i, j, i+rand)
-                        elif belowB == 0:
-                            cellMovement(i, j, i-rand)
+                    belowA = grid[i+rand, j+1] if i+rand in range(cols) else 1
+                    belowB = grid[i-rand, j+1] if i-rand in range(cols) else 1
+                    if belowA == 0:
+                        cellMovement(i, j, i+rand)
+                    elif belowB == 0:
+                        cellMovement(i, j, i-rand)
 
 
 """
@@ -147,10 +139,18 @@ def drawSand():
     -> The sand particles are created within a specific radius around the mouse position,
     and if a cell, within the radius, is empty, a sand particle is created in it.
 
+    Note:
+        - 
+
 """
-@rate_limit(interval=0.05)
+@rate_limit(interval=0.05) # the bigger the interval the less frequency the sand will spawn
 def summonSand():
-    sand_radius = cell_size // 2
+    # The numbers should be around the cell_size value (5), to give an extra flailing/flaming effect without exagerating
+    # Assigning 1 creates a reminiscent feel of a dying flame rekindling
+    # Opt for odd numbers to avoid redundancy; even numbers yield the same result due to floor division "//" halving them
+    radius = randomChoice([3, 5, 7, 9])
+    sand_radius = radius // 2
+
     mouse_state = pg.mouse.get_pressed()
     if mouse_state[0]:
         mouseX, mouseY = pg.mouse.get_pos()
@@ -161,8 +161,8 @@ def summonSand():
                     row = (mouseY // cell_size) + j
                     if col in range(cols) and row in range(rows):
                         if grid[col, row] == 0:
-                            grid[col, row] = 1
-                            rect_coords.append((col, row))
+                            grid[col, row] = 1 # setting the cell state to 1
+                            rect_coords.append((col, row)) # tracking the current coorfinate the particle
 
 
 
