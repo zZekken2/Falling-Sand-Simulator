@@ -15,33 +15,27 @@ clock = pg.time.Clock()
 
 bg_color = (85, 35, 65)
 black = (0, 0, 0)
-white = (255, 255, 255)
+sand = (255, 253, 150)
+white = (255, 255, 255, 128)
 
 # Grid
 cell_size = 5
 cols = screenW // cell_size
 rows = screenH // cell_size
 grid = np.zeros((cols, rows), dtype=int)
-rect_coords = [] # Keeps track of where the sand is
+rect_coords = [] # Keeps track of where there are sand particles
+
+gravity = 0.98
+velocity = []
 
 
-# \--- CODE SIMPLIFICATION FUNCTIONS ---/
-# -> Enhance code clarity and streamlining through functions <-
 
-"""
--> Returns the index of the given coordinates (x, y) in the rect_coords list <-
+def mousePos():
+    return pg.mouse.get_pos()
 
-    Parameters:
-    - x (int): The x-coordinate.
-    - y (int): The y-coordinate.
+def mouseState():
+    return pg.mouse.get_pressed()
 
-    Returns:
-    - int: The index of the coordinates in the rect_coords list.
-"""
-def index(x, y):
-    for i, (col, row) in enumerate(rect_coords):
-        if col == x and row == y:
-            return i
 
 """
 
@@ -58,10 +52,9 @@ def index(x, y):
 """
 def cellMovement(col, row, new_col):
     grid[col, row] = 0
-    del rect_coords[index(col, row)]
+    del rect_coords[rect_coords.index((col, row))]
     grid[new_col, row+1] = 1
     rect_coords.append((new_col, row+1))
-
 
 def randomChoice(values):
     return random.choice(values)
@@ -99,7 +92,7 @@ def rate_limit(interval):
 
 """
 def moveSand():
-    for _, (i, j) in enumerate(rect_coords):
+    for i, j in rect_coords:
         if grid[i, j] == 1:
             if j+1 <= rows-1:
                 below = grid[i, j+1];
@@ -116,6 +109,15 @@ def moveSand():
                         cellMovement(i, j, i-rand)
 
 
+def drawMouseRadius():
+    radius = 20
+    mouseX, mouseY = mousePos()
+
+    surface = pg.Surface((20, 20), pg.SRCALPHA)
+    pg.draw.rect(surface, white, pg.Rect(0, 0, radius, radius), 2)
+    screen.blit(surface, (mouseX - radius//2, mouseY - radius//2))
+
+
 """
 
 -> Draws the sand on the screen <-
@@ -129,8 +131,7 @@ def moveSand():
 def drawSand():
     moveSand()
     for _, (x, y) in enumerate(rect_coords):
-        pg.draw.rect(screen, white, ((x * cell_size, y * cell_size), (cell_size, cell_size)))
-
+        pg.draw.rect(screen, sand, ((x * cell_size, y * cell_size), (cell_size, cell_size)))
 
 """
 
@@ -145,36 +146,57 @@ def drawSand():
 """
 @rate_limit(interval=0.05) # the bigger the interval the less frequency the sand will spawn
 def summonSand():
-    # The numbers should be around the cell_size value (5), to give an extra flailing/flaming effect without exagerating
-    # Assigning 1 creates a reminiscent feel of a dying flame rekindling
-    # Opt for odd numbers to avoid redundancy; even numbers yield the same result due to floor division "//" halving them
-    radius = randomChoice([3, 5, 7, 9])
-    sand_radius = radius // 2
+    if mouseState()[0]:
 
-    mouse_state = pg.mouse.get_pressed()
-    if mouse_state[0]:
-        mouseX, mouseY = pg.mouse.get_pos()
+        # The numbers should be around the cell_size value (5), to give an extra flailing/flaming effect without exagerating
+        # Assigning 1 creates a reminiscent feel of a dying flame rekindling
+        # Opt for odd numbers to avoid redundancy; even numbers yield the same result due to floor division "//" halving them
+        # radius = randomChoice([3, 5, 7, 9])
+        sand_radius = 2
+
+        mouseX, mouseY = mousePos()
+        cellX, cellY = (mouseX // cell_size), (mouseY // cell_size)
         for i in range(-sand_radius, sand_radius, 1):
             for j in range(-sand_radius, sand_radius, 1):
                 if randomChoice([True, False]):
-                    col = (mouseX // cell_size) + i
-                    row = (mouseY // cell_size) + j
+                    col = cellX + i
+                    row = cellY + j
                     if col in range(cols) and row in range(rows):
                         if grid[col, row] == 0:
                             grid[col, row] = 1 # setting the cell state to 1
-                            rect_coords.append((col, row)) # tracking the current coorfinate the particle
+                            rect_coords.append((col, row)) # tracking the current coordinate of the summoned particle
+
+def eraseSand():
+    if mouseState()[2]:
+        erase_radius = 2
+        mouseX, mouseY = mousePos()
+        cellX, cellY = (mouseX // cell_size), (mouseY // cell_size)
+        for i in range(-erase_radius, erase_radius, 1):
+            for j in range(-erase_radius, erase_radius, 1):
+                col = cellX + i
+                row = cellY + j
+                if col in range(cols) and row in range(rows):
+                    if grid[col, row] == 1:
+                        grid[col, row] = 0
+                        del rect_coords[rect_coords.index((col, row))]
 
 
 
 # Main loop
-running = True
-while running:
-    for event in pg.event.get():
-        if event.type == QUIT:
-            running = False
+def main():
+    running = True
+    while running:
+        for event in pg.event.get():
+            if event.type == QUIT:
+                running = False
 
-    screen.fill(black)
-    summonSand()
-    drawSand()
-    pg.display.flip()
-    clock.tick(60)
+        screen.fill(black)
+        summonSand()
+        eraseSand()
+        drawSand()
+        drawMouseRadius()
+        pg.display.flip()
+        clock.tick(45)
+
+if __name__ == "__main__":
+    main()
