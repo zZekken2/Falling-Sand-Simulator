@@ -25,10 +25,6 @@ rows = screenH // cell_size
 grid = np.zeros((cols, rows), dtype=int)
 rect_coords = [] # Keeps track of where there are sand particles
 
-gravity = 0.98
-velocity = []
-
-
 
 def mousePos():
     return pg.mouse.get_pos()
